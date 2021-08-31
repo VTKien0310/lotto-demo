@@ -1,18 +1,26 @@
 <template>
   <div class="sheet-list">
-    <div class="sheet" v-for="i in 3">
-      <Sheet></Sheet>
+    <div class="sheet" v-for="i in numberOfSheetPair">
+      <SheetPair></SheetPair>
     </div>
   </div>
 </template>
 
 <script lang="ts">
 import {defineComponent} from "vue"
-import Sheet from "@/components/Sheet.vue";
+import SheetPair from "@/components/SheetPair.vue";
+import NumberHelper from "@/helpers/NumberHelper";
 
 export default defineComponent({
   name: "SheetList",
-  components: {Sheet}
+  components: {SheetPair},
+  data() {
+    let numberOfSheet = 6
+    return {
+      // the number of sheets generated will always be even
+      numberOfSheetPair: NumberHelper.roundToEven(numberOfSheet) / 2
+    }
+  }
 })
 </script>
 
@@ -23,7 +31,7 @@ export default defineComponent({
 
 .sheet-list {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   justify-content: space-around;
 }
 </style>

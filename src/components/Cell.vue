@@ -1,5 +1,5 @@
 <template>
-  <p v-if="number === 0" class="cell"></p>
+  <p v-if="number === 0" class="cell" v-bind:style="{background: color}"></p>
   <p v-else class="cell number-cell">{{ number }}</p>
 </template>
 
@@ -9,7 +9,11 @@ import {defineComponent} from "vue"
 export default defineComponent({
   name: "Cell",
   props: {
-    number: Number
+    number: Number,
+    color: {
+      type: String,
+      required: true
+    }
   }
 })
 </script>
@@ -23,7 +27,7 @@ export default defineComponent({
 }
 
 .number-cell {
-  background: deepskyblue;
-  color: azure;
+  background: white;
+  color: #202020;
 }
 </style>
