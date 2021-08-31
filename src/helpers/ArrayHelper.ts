@@ -8,10 +8,6 @@ export default class ArrayHelper {
         return new Array<number>(size).fill(0)
     }
 
-    static makeNewFilledArray(size: number, filler: any): Array<any> {
-        return new Array<any>(size).fill(filler)
-    }
-
     /**
      * Check if a number is in a number array
      *
@@ -20,18 +16,6 @@ export default class ArrayHelper {
      */
     static numberIsInArray(number: number, array: Array<number>): boolean {
         return array.includes(number)
-    }
-
-    /**
-     * Split an array in half and return the two halves
-     *
-     * @param array
-     */
-    static splitArrayToTwo(array: Array<any>): { firstHalf: Array<number>, secondHalf: Array<number> } {
-        return {
-            firstHalf: array.splice(0, Math.floor(array.length / 2)),
-            secondHalf: array
-        }
     }
 
     /**

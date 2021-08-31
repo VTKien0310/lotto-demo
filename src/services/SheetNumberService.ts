@@ -3,49 +3,60 @@ import NumberHelper from "@/helpers/NumberHelper";
 
 export default class SheetNumberService {
     /**
-     * Get the column that a number belongs to
+     * Get the column that a number belongs to from 0-8
      *
      * @param number
      * @private
      */
     static getNumberColumn(number: number): number {
-        return NumberHelper.getNumberTen(number - 1)
+        let column: number = NumberHelper.getNumberTen(number)
+        return column > 8 ? 8 : column
     }
 
     /**
-     * Get the numbers that can be placed in a column
+     * Get the numbers that can be placed in a column from 0-8 (1-9 in reality)
      *
      * @param columnNumber
      * @private
      */
     static getNumbersForColumn(columnNumber: number): Array<number> {
-        let row: Array<number> = [],
-            startNumber: number = (columnNumber - 1) * 10 + 1,
-            endNumber: number = startNumber + 9
-
-        for (let i = startNumber; i <= endNumber; i++) {
-            row.push(i)
+        if (columnNumber < 0 || columnNumber > 8) {
+            throw new Error('Invalid column number.')
         }
 
-        return row
+        let numbers: Array<number> = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((num: number) => num + columnNumber * 10)
+
+        // prepend 10, 20, 30, 40, 50, 60, 70, 80 if column is not 0
+        if (columnNumber != 0) {
+            numbers.unshift(columnNumber * 10)
+        }
+        if (columnNumber == 8) {
+            numbers.push(90)
+        }
+        return numbers
     }
 
     /**
-     * Generate the numbers for a column of two sheets
-     *
-     * @param column
+     * Get an array of numbers from 1-90
      */
-    generateNumbersForColumns(column: number): { firstSheetColumn: Array<number>, secondSheetColumn: Array<number> } {
-        let rowNumbers: Array<number> = ArrayHelper.shuffleArray(SheetNumberService.getNumbersForColumn(column)),
-            firstHalf: Array<number>,
-            secondHalf: Array<number>;
-
-        ({firstHalf, secondHalf} = ArrayHelper.splitArrayToTwo(rowNumbers))
-
-        return {
-            firstSheetColumn: firstHalf,
-            secondSheetColumn: secondHalf
+    static getNumbersForSheet(): Array<number> {
+        let numbers: Array<number> = []
+        for (let i = 0; i <= 8; i++) {
+            numbers.push(...SheetNumberService.getNumbersForColumn(i))
         }
+        return numbers
+    }
+
+    /**
+     * Init a priority memory array
+     *
+     * @param numbers
+     * @private
+     */
+    private initPriorityMemory(numbers: Array<number>): Array<number> {
+        let priorityMemory: Array<number> = ArrayHelper.makeNewZeroFilledArray(9)
+        numbers.forEach((num: number) => priorityMemory[SheetNumberService.getNumberColumn(num)]++)
+        return priorityMemory
     }
 
     /**
@@ -54,14 +65,18 @@ export default class SheetNumberService {
     generateSheetNumbers(): { sheetOne: Array<number>, sheetTwo: Array<number> } {
         let sheetOneNumbers: Array<number> = [],
             sheetTwoNumbers: Array<number> = [],
-            firstSheetColumn: Array<number> = [],
-            secondSheetColumn: Array<number> = []
+            sheetNumbers: Array<number> = ArrayHelper.shuffleArray(SheetNumberService.getNumbersForSheet()),
+            priorityMemory: Array<number> = this.initPriorityMemory(sheetNumbers)
 
-        for (let i = 1; i <= 9; i++) {
-            ({firstSheetColumn, secondSheetColumn} = this.generateNumbersForColumns(i))
-            sheetOneNumbers.push(...firstSheetColumn)
-            sheetTwoNumbers.push(...secondSheetColumn)
+        // add new numbers by priority to sheet 1 and the remaining numbers to sheet 2
+        while (sheetOneNumbers.length < 45) {
+            // only choose numbers from higher priority columns
+            let highPriorityNumber = this.getHighPriorityNumbers(sheetNumbers, priorityMemory),
+                newNumber: number = ArrayHelper.shuffleArray(highPriorityNumber)[0]
+            sheetOneNumbers.push(newNumber)
+            this.priorityAndSelectableManagement(newNumber, sheetNumbers, priorityMemory)
         }
+        sheetTwoNumbers.push(...sheetNumbers)
 
         return {
             sheetOne: this.arrangeSheetNumber(sheetOneNumbers),
@@ -77,7 +92,7 @@ export default class SheetNumberService {
      */
     private arrangeSheetNumber(sheet: Array<number>): Array<number> {
         let arrangedSheet: Array<number> = [],
-            priorityMemory: Array<number> = ArrayHelper.makeNewFilledArray(9, 5)
+            priorityMemory: Array<number> = this.initPriorityMemory(sheet)
 
         sheet = ArrayHelper.shuffleArray(sheet)
 
@@ -86,6 +101,33 @@ export default class SheetNumberService {
         }
 
         return arrangedSheet
+    }
+
+    /**
+     * Get high priority numbers from a selection pool
+     *
+     * @param selectionPool
+     * @param priorityMemory
+     * @private
+     */
+    private getHighPriorityNumbers(selectionPool: Array<number>, priorityMemory: Array<number>) {
+        return this.rejectNumbersFromColumns(
+            selectionPool,
+            this.getLowPriorityColumns(priorityMemory)
+        )
+    }
+
+    /**
+     * Update the priorities of columns and the selectable numbers pool
+     *
+     * @param newNumber
+     * @param selectionPool
+     * @param priorityMemory
+     * @private
+     */
+    private priorityAndSelectableManagement(newNumber: number, selectionPool: Array<number>, priorityMemory: Array<number>) {
+        priorityMemory[SheetNumberService.getNumberColumn(newNumber)] -= 1
+        ArrayHelper.findFirstAndRemove(newNumber, selectionPool)
     }
 
     /**
@@ -99,18 +141,12 @@ export default class SheetNumberService {
         let newRow: Array<number> = []
         while (newRow.length < 5) {
             // only choose numbers from higher priority columns
-            let highPriorityNumber = this.rejectNumbersFromColumns(
-                    sheetNumbers,
-                    this.getLowPriorityColumns(priorityMemory)
-                ),
-                newNumber = this.findNewNumberForRow(highPriorityNumber, newRow)
+            let highPriorityNumbers = this.getHighPriorityNumbers(sheetNumbers, priorityMemory),
+                newNumber = this.findNewNumberForRow(highPriorityNumbers, newRow)
 
             if (newNumber != -1) {
                 newRow.push(newNumber)
-
-                // update the priorities of columns and the selectable numbers pool
-                priorityMemory[SheetNumberService.getNumberColumn(newNumber)] -= 1
-                ArrayHelper.findFirstAndRemove(newNumber, sheetNumbers)
+                this.priorityAndSelectableManagement(newNumber, sheetNumbers, priorityMemory)
             } else {
                 throw new Error('No suitable number found to construct a new row.')
             }
@@ -149,7 +185,7 @@ export default class SheetNumberService {
         let highestPriority: number = ArrayHelper.findMaxInNumberArray(priorityMemory),
             lowPriorityColumn: Array<number> = []
         for (let i = 0; i < priorityMemory.length; i++) {
-            if (priorityMemory[i] != highestPriority) {
+            if (priorityMemory[i] < highestPriority) {
                 lowPriorityColumn.push(i)
             }
         }
